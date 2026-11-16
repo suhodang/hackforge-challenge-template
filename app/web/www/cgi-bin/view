@@ -1,0 +1,11 @@
+#!/bin/sh
+# /www/files 안의 파일을 보여 준다
+file=$(httpd -d "${QUERY_STRING#file=}")
+path="/www/files/$file"
+if [ -f "$path" ]; then
+	realpath "$path" >> /tmp/view.log
+	printf 'Content-Type: text/plain; charset=utf-8\r\n\r\n'
+	cat "$path"
+else
+	printf 'Status: 404 Not Found\r\nContent-Type: text/plain\r\n\r\nnot found\n'
+fi

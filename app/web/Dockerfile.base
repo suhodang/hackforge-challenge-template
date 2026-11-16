@@ -1,0 +1,2 @@
+# 의존성 설치는 여기서 한다. build.sh가 hackforge/challenge-<SLUG>-<서비스>-base로 빌드해 images.tar에 넣는다
+FROM busybox:1.37.0
