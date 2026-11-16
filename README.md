@@ -46,6 +46,8 @@ Hackforge Challenge 저장소의 GitHub Template이다. 새 문제는 이 저장
 
 플랫폼은 실습 Pod에 exec로 들어가 스크립트 본문을 stdin으로 넘기고, 작업 폴더 `/app`에서 `sh`로 실행한다. 파일로 남지 않으므로 다른 파일을 `source`하지 않는다. 쓸 수 있는 도구는 `docker compose exec -T`, `wget`, `nc`, busybox 기본 도구다. exit code 0은 "확인하려는 일이 일어남"이고, 마지막 출력 줄은 결과 메시지로 학습자에게 보일 수 있다. 60초를 넘기면 FAIL이다.
 
+DB는 `-h 127.0.0.1`로 TCP 접속한다. unix socket 접속은 환경에 따라 실패한다(GitHub Actions에서 MySQL `ERROR 2002`). 조회가 실패하면 "기록 없음"으로 넘기지 말고 마지막 줄에 오류를 남기고 0이 아닌 값으로 끝낸다. 그러지 않으면 공격 전 확인이 잘못된 이유로 통과한다.
+
 ## 빌드와 로컬 확인
 
 Git Bash나 Linux 셸에서 Docker를 켜고 실행한다.

@@ -17,8 +17,11 @@ for f in app/*/Dockerfile.base; do
 	docker build -t "$base" -f "$f" "app/$svc"
 	bases="$bases $base"
 done
-(cd app && docker compose build && docker compose pull --ignore-buildable)
-docker save -o images.tar $(cd app && docker compose config --images) $bases
+(cd app && docker compose build)
+images=$(cd app && docker compose config --images)
+# 공개 이미지는 pull_policy: never라 compose pull이 건너뛴다. 없는 것만 직접 받는다
+for i in $images; do docker image inspect "$i" >/dev/null 2>&1 || docker pull "$i"; done
+docker save -o images.tar $images $bases
 
 image=hackforge/challenge-$SLUG:$tag
 docker build -t "$image" .
