@@ -11,7 +11,7 @@ Hackforge Challenge 저장소의 GitHub Template이다. 새 문제는 이 저장
 | `app/` | 학습자 환경의 `/app`으로 복사됨. `compose.yaml`과 서비스 폴더 |
 | `app/<서비스>/Dockerfile.base` | 의존성 설치. `build.sh`가 `hackforge/challenge-<SLUG>-<서비스>-base`로 빌드 |
 | `app/<서비스>/Dockerfile` | 첫 줄 `FROM hackforge/challenge-<SLUG>-<서비스>-base`, 그다음은 소스 `COPY`만 |
-| `meta/challenge.env` | `SLUG`, `TITLE`, `MAX_DEFENSE_ATTEMPTS` (셸 변수) |
+| `meta/challenge.env` | `SLUG`, `TITLE`, `MAX_DEFENSE_ATTEMPTS`와 문제 정보 `CATEGORY`, `DIFFICULTY`, `ESTIMATED_MINUTES`, `SUMMARY` (셸 변수) |
 | `meta/description.md` | 문제 목록에 보이는 설명 |
 | `meta/hints/attack/1~3.md` | 공격 힌트. 방향, 위치, 공격 방법 순서 |
 | `meta/hints/defense/1~3.md` | 방어 힌트. 방향, 위치, 고치는 방법 순서 |
@@ -28,7 +28,7 @@ Hackforge Challenge 저장소의 GitHub Template이다. 새 문제는 이 저장
 ## 새 문제 만들기
 
 1. [Use this template]으로 `hackforge-challenge-<문제>`를 private으로 만든다
-2. `meta/challenge.env`의 `SLUG`, `TITLE`, `MAX_DEFENSE_ATTEMPTS`를 바꾼다. `SLUG`는 영어 소문자, 숫자, `-`만 쓴다
+2. `meta/challenge.env`의 값을 바꾼다. `SLUG`는 영어 소문자, 숫자, `-`만 쓴다. 문제 정보는 아래 "문제 정보" 규칙을 따른다
 3. `app/`의 예시 서비스를 지우고 문제의 서비스를 만든다. 이미지 이름의 `example`을 새 `SLUG`로 바꾼다(`compose.yaml`의 `image`, 각 `Dockerfile`의 `FROM`)
 4. `meta/`의 설명, 힌트 6개, 해답, 스크립트 3개를 쓴다
 5. `sh build.sh <tag>`, `sh check.sh <tag>`로 확인하고 PR을 올린다. CI가 같은 두 명령을 실행한다
@@ -41,6 +41,17 @@ Hackforge Challenge 저장소의 GitHub Template이다. 새 문제는 이 저장
 - 초기 데이터는 DB의 `/docker-entrypoint-initdb.d/`로 넣는다
 - 공개 이미지는 tag를 고정하고 `pull_policy: never`를 둔다. 외부 인터넷이 필요한 기능은 넣지 않는다
 - port는 `127.0.0.1:<포트>`로 publish한다. 스크립트는 그 주소로 요청한다
+
+## 문제 정보
+
+문제 목록에 보이는 값이다(hackforge-docs ADR 020). `register.sh`가 확인하고, 빠졌거나 형식이 틀리면 DB를 건드리지 않고 끝난다.
+
+| 변수 | 값 |
+|---|---|
+| `CATEGORY` | 분류 키 하나. `sqli`, `xss`, `access-control`, `auth-session`, `command-injection`, `path-traversal`, `file-upload`, `ssrf`, `csrf`, `xxe`, `deserialization`, `info-disclosure`. 목록에 없는 키는 DB가 거절한다 |
+| `DIFFICULTY` | `INTRO`(입문), `BEGINNER`(초급), `INTERMEDIATE`(중급), `ADVANCED`(고급) |
+| `ESTIMATED_MINUTES` | 공격과 방어를 마치는 데 걸리는 예상 시간. 분 단위, 1 이상 정수 |
+| `SUMMARY` | 목록에 보이는 한 줄, 80자 이내. 학습자가 무엇을 하는지 쓰고 payload나 고치는 방법은 쓰지 않는다 |
 
 ## 검증 스크립트
 
@@ -92,7 +103,8 @@ sudo ctr -n k8s.io images import --platform linux/amd64 ~/challenge-<SLUG>-0.1.0
 PSQL="docker exec -i hackforge-be-postgres-1 psql -U hackforge" sh register.sh 0.1.0
 ```
 
-- 같은 slug가 있으면 제목, 이미지 tag, 설명, 해답, 스크립트, 최대 시도 횟수를 갱신하고 힌트를 다시 넣는다
-- `meta/` 필수 파일이 없거나 비어 있으면 DB를 건드리지 않고 끝난다
+- 같은 slug가 있으면 제목, 이미지 tag, 문제 정보, 설명, 해답, 스크립트, 최대 시도 횟수를 갱신하고 힌트를 다시 넣는다. 처음 등록한 시각은 그대로라 다시 등록해도 새 문제로 표시되지 않는다
+- `meta/` 필수 파일이 없거나 비어 있으면 DB를 건드리지 않고 끝난다. 문제 정보가 빠졌거나 형식이 틀려도 같다
+- 목록에 없는 분류 키는 DB가 거절하고 등록 전체가 취소된다
 - 그 문제에 진행 중 세션이 있으면 거절한다. 세션이 끝난 뒤 다시 실행한다
 - 이미지를 노드에 import하기 전에 등록하면, 그 사이 시작한 세션은 이미지를 찾지 못해 `FAILED`가 된다. import 다음에 등록한다

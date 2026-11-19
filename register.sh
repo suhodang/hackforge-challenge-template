@@ -17,10 +17,24 @@ done
 . meta/challenge.env
 : "${SLUG:?meta/challenge.env에 SLUG 없음}" "${TITLE:?meta/challenge.env에 TITLE 없음}"
 : "${MAX_DEFENSE_ATTEMPTS:?meta/challenge.env에 MAX_DEFENSE_ATTEMPTS 없음}"
+# 문제 정보(ADR 020). 분류 키가 목록에 있는지는 DB FK가 확인하고, 없으면 transaction 전체가 취소된다
+: "${CATEGORY:?meta/challenge.env에 CATEGORY 없음}" "${DIFFICULTY:?meta/challenge.env에 DIFFICULTY 없음}"
+: "${ESTIMATED_MINUTES:?meta/challenge.env에 ESTIMATED_MINUTES 없음}" "${SUMMARY:?meta/challenge.env에 SUMMARY 없음}"
+case "$DIFFICULTY" in
+INTRO | BEGINNER | INTERMEDIATE | ADVANCED) ;;
+*) echo "DIFFICULTY는 INTRO, BEGINNER, INTERMEDIATE, ADVANCED 중 하나여야 함: $DIFFICULTY" >&2; exit 1 ;;
+esac
+case "$ESTIMATED_MINUTES" in
+'' | *[!0-9]* | 0*) echo "ESTIMATED_MINUTES는 1 이상 정수(분)여야 함: $ESTIMATED_MINUTES" >&2; exit 1 ;;
+esac
+# 글자 수로 센다(한글 한 글자 = 1). DB도 80자를 넘으면 거절한다
+n=$(printf %s "$SUMMARY" | LC_ALL=C.UTF-8 wc -m)
+[ "$n" -le 80 ] || { echo "SUMMARY는 80자 이내여야 함: ${n}자" >&2; exit 1; }
 
 # 파일 내용은 psql 변수로 넘기고 SQL에서는 :'변수'로만 쓴다(문자열을 이어 붙이지 않음)
 $PSQL -X -q -v ON_ERROR_STOP=1 \
 	-v slug="$SLUG" -v title="$TITLE" -v image="hackforge/challenge-$SLUG:$tag" -v max="$MAX_DEFENSE_ATTEMPTS" \
+	-v category="$CATEGORY" -v difficulty="$DIFFICULTY" -v minutes="$ESTIMATED_MINUTES" -v summary="$SUMMARY" \
 	-v description="$(cat meta/description.md)" -v solution="$(cat meta/solution.md)" \
 	-v attack_check="$(cat meta/attack-check.sh)" -v exploit="$(cat meta/exploit.sh)" \
 	-v functional_test="$(cat meta/functional-test.sh)" \
@@ -38,12 +52,17 @@ BEGIN
 		RAISE EXCEPTION '진행 중 세션이 있어 등록하지 않음. 세션이 끝난 뒤 다시 실행';
 	END IF;
 END $$;
-INSERT INTO challenges (slug, title, image, description, solution, attack_check, exploit, functional_test, max_defense_attempts)
-VALUES (:'slug', :'title', :'image', :'description', :'solution', :'attack_check', :'exploit', :'functional_test', :'max')
+-- created_at은 처음 등록한 시각이라 갱신하지 않는다(새 문제 표시가 다시 등록해도 바뀌지 않게)
+INSERT INTO challenges (slug, title, image, description, solution, attack_check, exploit, functional_test, max_defense_attempts,
+	category_key, difficulty, estimated_minutes, summary)
+VALUES (:'slug', :'title', :'image', :'description', :'solution', :'attack_check', :'exploit', :'functional_test', :'max',
+	:'category', :'difficulty', :'minutes', :'summary')
 ON CONFLICT (slug) DO UPDATE SET
 	title = EXCLUDED.title, image = EXCLUDED.image, description = EXCLUDED.description, solution = EXCLUDED.solution,
 	attack_check = EXCLUDED.attack_check, exploit = EXCLUDED.exploit, functional_test = EXCLUDED.functional_test,
-	max_defense_attempts = EXCLUDED.max_defense_attempts, updated_at = now()
+	max_defense_attempts = EXCLUDED.max_defense_attempts, category_key = EXCLUDED.category_key,
+	difficulty = EXCLUDED.difficulty, estimated_minutes = EXCLUDED.estimated_minutes, summary = EXCLUDED.summary,
+	updated_at = now()
 RETURNING id AS challenge_id \gset
 DELETE FROM challenge_hints WHERE challenge_id = :challenge_id;
 INSERT INTO challenge_hints (challenge_id, stage, position, content) VALUES
