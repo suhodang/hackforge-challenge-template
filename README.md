@@ -41,6 +41,7 @@ Hackforge Challenge 저장소의 GitHub Template이다. 새 문제는 이 저장
 - 초기 데이터는 DB의 `/docker-entrypoint-initdb.d/`로 넣는다
 - 공개 이미지는 tag를 고정하고 `pull_policy: never`를 둔다. 외부 인터넷이 필요한 기능은 넣지 않는다
 - port는 `127.0.0.1:<포트>`로 publish한다. 스크립트는 그 주소로 요청한다
+- 공격 대상 웹(학습자가 브라우저로 공격하는 서비스)은 `127.0.0.1:8080`으로 publish한다(`ports: ["127.0.0.1:8080:<컨테이너 포트>"]`). 플랫폼은 실습 화면의 공격 대상 화면을 Pod 안 이 주소로 연다(hackforge-docs ADR 022). 다른 서비스(DB 등)는 8080을 쓰지 않는다
 
 ## 문제 정보
 
